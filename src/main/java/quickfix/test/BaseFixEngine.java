@@ -12,11 +12,11 @@ import quickfix.UnsupportedMessageType;
 import quickfix.field.ExecType;
 import quickfix.fix44.ExecutionReport;
 
-public class BaseInitiator extends ApplicationAdapter {
+public class BaseFixEngine extends ApplicationAdapter {
 	
 	private String password;
 	
-	public BaseInitiator(String password) {
+	public BaseFixEngine(String password) {
 		super();
 		this.password = password;
 	}

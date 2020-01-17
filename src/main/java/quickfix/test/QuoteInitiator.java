@@ -22,14 +22,16 @@ import quickfix.fix44.MarketDataRequest.NoRelatedSym;
 
 import java.io.FileInputStream;
 import java.util.Date;
+import java.util.ArrayList;
 
-public class Quote {
+public class QuoteInitiator {
 	
-	private static final Logger log = LoggerFactory.getLogger(Quote.class);
+	private static final Logger log = LoggerFactory.getLogger(QuoteInitiator.class);
 	private boolean initiatorStarted = false;
 	private Initiator initiator = null;
+	private static int nextID = 1;
 	
-	public Quote() throws Exception {
+	public QuoteInitiator() throws Exception {
 		
 		String fileName = "./src/main/resources/config/quote.cfg";
 		
@@ -37,7 +39,7 @@ public class Quote {
 		// Manually get some fields that quickfix-j doesn't support
 		String password = settings.getString("Password");
 		
-		Application application = new BaseInitiator(password);
+		Application application = new BaseFixEngine(password);
 		MessageStoreFactory storeFactory = new FileStoreFactory(settings);
 		ScreenLogFactory screenLogFactory = new ScreenLogFactory(settings);
 	    MessageFactory messageFactory = new DefaultMessageFactory();
@@ -49,14 +51,8 @@ public class Quote {
 	public void logon() {
 		if(!initiatorStarted) {
 			try {
-				System.out.println("Inside logon");
 				initiator.start();
 				initiatorStarted = true;
-			    try {
-			    	Thread.sleep(1000);
-			    } catch (Exception e) {
-			    	e.getStackTrace();
-			    }
 			} catch (Exception e) {
 				log.error("Logon failed");
 			}
@@ -67,61 +63,58 @@ public class Quote {
 		}
 	}
 	
-	public void logout() {
-		for (SessionID sessionID: initiator.getSessions()) {
-			Session.lookupSession(sessionID).logout("User requested");
-		}
+	public void logout(SessionID sessionID) {
+		Session.lookupSession(sessionID).logout("User requested");
 	}
 	
-	public void sendTestRequest() {
+	public void sendTestRequest(SessionID sessionID) {
 		TestRequest testRequest = new TestRequest();
 		
-		for (SessionID sessionID: initiator.getSessions()) {
-			System.out.println("In test Request()");
-			Session.lookupSession(sessionID).send(testRequest);
-		}
+		Session.lookupSession(sessionID).send(testRequest);	
 	}
 	
-	public void sendMarketDataRequest() {
-		for (SessionID sessionID: initiator.getSessions()) {
-			
+	public void sendMarketDataRequest(SessionID sessionID, ArrayList<Symbol> symbols) {
 			Date date = new Date();
-			long time = date.getTime();
-			String mdReqID = sessionID.toString() + time;
+			String mdReqID = Long.toString(System.currentTimeMillis() + (nextID++));
 			
  			MarketDataRequest marketDataRequest = new MarketDataRequest(
 					new MDReqID(mdReqID),
-					new SubscriptionRequestType('1'),
+					new SubscriptionRequestType(SubscriptionRequestType.SNAPSHOT_PLUS_UPDATES),
 					new MarketDepth(1));
 			
-			marketDataRequest.set(new MDUpdateType(0));
+			marketDataRequest.set(new MDUpdateType(MDUpdateType.FULL_REFRESH));
 			
 			NoMDEntryTypes mdEntryTypeGroup = new NoMDEntryTypes();
-			mdEntryTypeGroup.set(new MDEntryType('0'));
+			mdEntryTypeGroup.set(new MDEntryType(MDEntryType.BID));
 			marketDataRequest.addGroup(mdEntryTypeGroup);
-			mdEntryTypeGroup.set(new MDEntryType('1'));
+			mdEntryTypeGroup.set(new MDEntryType(MDEntryType.OFFER));
 			marketDataRequest.addGroup(mdEntryTypeGroup);
 			
 			NoRelatedSym relatedSymGroup = new NoRelatedSym();
-			relatedSymGroup.set(new Symbol("GOOG"));
-			marketDataRequest.addGroup(relatedSymGroup);
-					
+			for(Symbol symbol: symbols) {
+				relatedSymGroup.set(symbol);
+				marketDataRequest.addGroup(relatedSymGroup);	
+			}
+			
 			Session.lookupSession(sessionID).send(marketDataRequest);
-		}
 	}
 	
-	public void sendQuoteCancel() {
-		for (SessionID sessionID: initiator.getSessions()) {
+	public void sendQuoteCancel(SessionID sessionID) {
 			Date date = new Date();
-			long time = date.getTime();
-			String cancelQuoteMsg = "Cancel All Quotes at " + time + " session: " + sessionID.toString();
+			String cancelQuoteMsg = "Cancel All Quotes at " + date.getTime() + ", session: " + sessionID.toString();
 			
 			QuoteCancel quoteCancel = new QuoteCancel(new QuoteID(cancelQuoteMsg),
 					new QuoteCancelType(4));
 			
 			Session.lookupSession(sessionID).send(quoteCancel);
-		}
 	}
 	
+	public ArrayList<SessionID> getSessionIDs() {
+		if(initiatorStarted) {
+			return initiator.getSessions();	
+		} else {
+			return null;
+		}
+	}
 	
 }

@@ -26,7 +26,9 @@ public class TradingInitiatorTest {
 
 			Order order = new Order();
 			order.setSessionID(firstSessionID);
-			order.setSymbol("HKD");
+			order.setQuantity(5);
+			order.setSymbol("CADJPY");
+			order.setOriginalID(order.getID());
 			
 			tradingInitiator.sendNewOrderSingle(order);
 		}

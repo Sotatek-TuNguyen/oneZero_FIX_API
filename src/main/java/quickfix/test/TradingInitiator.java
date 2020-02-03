@@ -10,6 +10,7 @@ import quickfix.Message;
 import quickfix.field.Account;
 import quickfix.field.SenderSubID;
 import quickfix.field.ClOrdID;
+import quickfix.field.OrigClOrdID;
 import quickfix.field.HandlInst;
 import quickfix.field.Symbol;
 import quickfix.field.Side;
@@ -28,6 +29,7 @@ import quickfix.field.XmlData;
 import quickfix.field.StopPx;
 import quickfix.fix44.TestRequest;
 import quickfix.fix44.NewOrderSingle;
+import quickfix.fix44.OrderCancelRequest;
 
 import java.io.FileInputStream;
 import java.time.LocalDateTime;
@@ -78,7 +80,7 @@ public class TradingInitiator {
 	
 	public void logout() {
 		for (SessionID sessionID: initiator.getSessions()) {
-			Session.lookupSession(sessionID).logout("User requested");
+			Session.lookupSession(sessionID).logout("ogout requested");
 		}
 	}
 	
@@ -100,9 +102,29 @@ public class TradingInitiator {
 		newOrderSingle.set(new OrderQty(order.getQuantity()));
 		newOrderSingle.set(new Symbol(order.getSymbol()));
 		newOrderSingle.set(new HandlInst(HandlInst.AUTOMATED_EXECUTION_ORDER_PRIVATE));
+		newOrderSingle.set(tifToFIXTif(order.getTIF()));
 		
 		Session.lookupSession(order.getSessionID())
 			   .send(populateOrder(order, newOrderSingle));
+	}
+	
+	public void sendOrderCancelRequest(Order order) {
+		OrderCancelRequest orderCancelRequest = new OrderCancelRequest(
+				new OrigClOrdID(order.getOriginalID()),
+				new ClOrdID(order.getID()),
+				sideToFIXSide(order.getSide()),	
+				new TransactTime());
+		
+		Session.lookupSession(order.getSessionID())
+		   .send(orderCancelRequest);
+	}
+	
+	public ArrayList<SessionID> getSessionIDs() {
+		if(initiatorStarted) {
+			return initiator.getSessions();	
+		} else {
+			return null;
+		}
 	}
 	
 	public Message populateOrder(Order order, Message newOrderSingle) {
@@ -124,15 +146,6 @@ public class TradingInitiator {
 
         return newOrderSingle;
 	}
-	
-	public ArrayList<SessionID> getSessionIDs() {
-		if(initiatorStarted) {
-			return initiator.getSessions();	
-		} else {
-			return null;
-		}
-	}
-	
 	public Side sideToFIXSide(OrderSide side) {
         return (Side) sideMap.getFirst(side);
     }

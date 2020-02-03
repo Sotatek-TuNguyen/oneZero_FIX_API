@@ -7,12 +7,14 @@ import java.util.ArrayList;
 
 public class QuoteInitiatorTest {
 	public static void main (String[] args) throws Exception {
-		QuoteInitiator quoteInitiator = new QuoteInitiator();
+		String configFile = "./src/main/resources/config/quote.cfg";
+		
+		QuoteInitiator quoteInitiator = new QuoteInitiator(configFile);
 		ArrayList<SessionID> sessionIDs = null;
 		SessionID firstSessionID = null;
 		ArrayList<Symbol> symbols = new ArrayList<Symbol>();
 			
-		symbols.add(new Symbol("HKD"));
+		symbols.add(new Symbol("CADJPY"));
 		
 		quoteInitiator.logon();
 		
@@ -37,8 +39,9 @@ public class QuoteInitiatorTest {
 		}
 		
 		quoteInitiator.sendQuoteCancel(firstSessionID);
+//		quoteInitiator.sendQuoteCancel(firstSessionID, new Symbol("CADJPY"));
 		
-		quoteInitiator.logout(firstSessionID);
+//		quoteInitiator.logout(firstSessionID);
 		}
 	}
 }

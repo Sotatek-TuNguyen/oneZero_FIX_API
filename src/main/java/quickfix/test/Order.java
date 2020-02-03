@@ -12,7 +12,7 @@ public class Order {
 	private double executed = 0;
 	private OrderSide side = OrderSide.BUY;
 	private OrderType type = OrderType.MARKET;
-	private OrderTIF tif = OrderTIF.DAY;
+	private OrderTIF tif = OrderTIF.GTC;
 	private Double limit = null;
 	private Double stop = null;
 	private double avgPx = 0.0;

@@ -19,6 +19,7 @@ import quickfix.fix44.QuoteCancel;
 import quickfix.fix44.MarketDataRequest;
 import quickfix.fix44.MarketDataRequest.NoMDEntryTypes;
 import quickfix.fix44.MarketDataRequest.NoRelatedSym;
+import quickfix.fix44.QuoteCancel.NoQuoteEntries;
 
 import java.io.FileInputStream;
 import java.util.Date;
@@ -31,11 +32,8 @@ public class QuoteInitiator {
 	private Initiator initiator = null;
 	private static int nextID = 1;
 	
-	public QuoteInitiator() throws Exception {
-		
-		String fileName = "./src/main/resources/config/quote.cfg";
-		
-		SessionSettings settings = new SessionSettings(new FileInputStream(fileName));
+	public QuoteInitiator(String configFile) throws Exception {
+		SessionSettings settings = new SessionSettings(new FileInputStream(configFile));
 		// Manually get some fields that quickfix-j doesn't support
 		String password = settings.getString("Password");
 		
@@ -45,9 +43,12 @@ public class QuoteInitiator {
 	    MessageFactory messageFactory = new DefaultMessageFactory();
 		
 	    initiator = new SocketInitiator(application, storeFactory, settings, screenLogFactory, messageFactory);
-	    
+	   
 	}
 	
+	/**
+	 * Logon message sent by client to initiate a FIX session
+	 */
 	public void logon() {
 		if(!initiatorStarted) {
 			try {
@@ -63,18 +64,35 @@ public class QuoteInitiator {
 		}
 	}
 	
+	/**
+	 * A logout message is sent by oneZero to the client, or the client to oneZero,
+	 * to terminate a FIX session
+	 * 
+	 * @param sessionID
+	 */
 	public void logout(SessionID sessionID) {
-		Session.lookupSession(sessionID).logout("User requested");
+		Session.lookupSession(sessionID).logout("logout requested");
 	}
 	
+	/**
+	 * A Test Request message is sent by oneZero to the client, or the client to
+	 * oneZero as a means of verifying two-way FIX connectivity
+	 * 
+	 * @param sessionID
+	 */
 	public void sendTestRequest(SessionID sessionID) {
 		TestRequest testRequest = new TestRequest();
 		
 		Session.lookupSession(sessionID).send(testRequest);	
 	}
 	
+	/**
+	 * subscribe to streaming quote updates from oneZero
+	 * 
+	 * @param sessionID
+	 * @param symbols
+	 */
 	public void sendMarketDataRequest(SessionID sessionID, ArrayList<Symbol> symbols) {
-			Date date = new Date();
 			String mdReqID = Long.toString(System.currentTimeMillis() + (nextID++));
 			
  			MarketDataRequest marketDataRequest = new MarketDataRequest(
@@ -99,16 +117,43 @@ public class QuoteInitiator {
 			Session.lookupSession(sessionID).send(marketDataRequest);
 	}
 	
+	/**
+	 * Cancel streaming quote updates all quotes
+	 * 
+	 * @param sessionID
+	 */
 	public void sendQuoteCancel(SessionID sessionID) {
-			Date date = new Date();
-			String cancelQuoteMsg = "Cancel All Quotes at " + date.getTime() + ", session: " + sessionID.toString();
+			String quoteID = Long.toString(System.currentTimeMillis() + (nextID++));
 			
-			QuoteCancel quoteCancel = new QuoteCancel(new QuoteID(cancelQuoteMsg),
-					new QuoteCancelType(4));
+			QuoteCancel quoteCancel = new QuoteCancel(new QuoteID(quoteID),
+					new QuoteCancelType(QuoteCancelType.CANCEL_ALL_QUOTES));
 			
 			Session.lookupSession(sessionID).send(quoteCancel);
 	}
 	
+	/**
+	 * Cancel streaming quote updates for one symbol
+	 * 
+	 * @param sessionID
+	 */
+	public void sendQuoteCancel(SessionID sessionID, Symbol symbol) {
+			String quoteID = Long.toString(System.currentTimeMillis() + (nextID++));
+			
+			QuoteCancel quoteCancel = new QuoteCancel(new QuoteID(quoteID),
+					new QuoteCancelType(QuoteCancelType.CANCEL_FOR_SYMBOL));
+			
+			NoQuoteEntries noQuoteEntries = new NoQuoteEntries();
+			noQuoteEntries.set(symbol);
+			
+			quoteCancel.addGroup(noQuoteEntries);
+			Session.lookupSession(sessionID).send(quoteCancel);
+	}
+	
+	/**
+	 * Get all sessionIDs of current Initiator
+	 * 
+	 * @return ArrayList<SessionID>
+	 */
 	public ArrayList<SessionID> getSessionIDs() {
 		if(initiatorStarted) {
 			return initiator.getSessions();	
